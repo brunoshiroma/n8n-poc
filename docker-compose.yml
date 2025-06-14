@@ -1,0 +1,56 @@
+
+services:
+  redis:
+    image: redis:alpine
+    shm_size: 128mb
+    user: "${UID}:${GID}"
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_volume:/data
+
+  postgres:
+    image: postgres:alpine
+    shm_size: 128mb
+    user: "${UID}:${GID}"
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+      - POSTGRES_NON_ROOT_USER
+      - POSTGRES_NON_ROOT_PASSWORD
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_volume:/var/lib/postgresql/data:z
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    user: "${UID}:${GID}"
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_NON_ROOT_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  waha:
+    image: devlikeapro/waha:noweb
+    user: "${UID}:${GID}"
+    volumes:
+      - ./waha_volume:/app/.sessions
+    ports:
+      - "3000:3000"

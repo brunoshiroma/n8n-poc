@@ -1,0 +1,5 @@
+.env
+n8n_data
+postgres_volume
+redis_volume
+waha_volume
