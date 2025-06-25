@@ -1,5 +1,7 @@
 .env
-n8n_data
+n8n_volume
 postgres_volume
 redis_volume
 waha_volume
+ollama_volume
+ollama_models_volume

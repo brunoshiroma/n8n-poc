@@ -1,5 +1,7 @@
 
 services:
+
+# cache para uso geral
   redis:
     image: redis:alpine
     shm_size: 128mb
@@ -9,6 +11,7 @@ services:
     volumes:
       - ./redis_volume:/data
 
+# banco para uso geral e também como banco para o n8n
   postgres:
     image: postgres:alpine
     shm_size: 128mb
@@ -35,7 +38,7 @@ services:
     ports:
       - "5678:5678"
     volumes:
-      - ./n8n_data:/home/node/
+      - ./n8n_volume:/home/node/
     environment:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
@@ -47,6 +50,7 @@ services:
       postgres:
         condition: service_healthy
 
+# ferramenta para integração com o Whatsapp
   waha:
     image: devlikeapro/waha:noweb
     user: "${UID}:${GID}"
@@ -54,3 +58,32 @@ services:
       - ./waha_volume:/app/.sessions
     ports:
       - "3000:3000"
+
+# ferramenta para rodar localmente as AI LLM's
+  ollama:
+    image: ollama/ollama
+    runtime: nvidia # para poder usar a GPU da nVidia, não possuo GPU amd para validar e configurar =´(
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - ./ollama_volume:/root/.ollama
+      - ./ollama_models_volume:/models
+    ports:
+      - "11434:11434"
+
+# interface grafica web para usar o ollama diretamente.
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    environment:
+      - MODEL_DOWNLOAD_DIR=/models
+      - OLLAMA_API_BASE_URL=http://ollama:11434
+      - OLLAMA_API_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://ollama:11434 # https://github.com/open-webui/open-webui/blob/b5f4c85bb196c16a775802907aedd87366f58b0f/backend/open_webui/config.py#L820
+      - LOG_LEVEL=debug
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY} 
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ollama
